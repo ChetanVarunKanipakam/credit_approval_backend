@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=alemeno_db
+      - POSTGRES_USER=alemeno_user
+      - POSTGRES_PASSWORD=alemeno_password
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: "redis:7-alpine"
+
+  web:
+    build: .
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DJANGO_SECRET_KEY=change-this-in-production
+      - DB_NAME=alemeno_db
+      - DB_USER=alemeno_user
+      - DB_PASSWORD=alemeno_password
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+
+  celery:
+    build: .
+    command: celery -A alemethod worker -l info
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DJANGO_SECRET_KEY=change-this-in-production
+      - DB_NAME=alemeno_db
+      - DB_USER=alemeno_user
+      - DB_PASSWORD=alemeno_password
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+
+volumes:
+  postgres_data:
