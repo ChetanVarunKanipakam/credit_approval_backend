@@ -1,7 +1,12 @@
+# apps/loans/services.py
+
 from datetime import date
 from django.db.models import Sum
-from .models import Loan, Customer
+from decimal import Decimal  # <--- THIS IS THE MISSING LINE
 from dateutil.relativedelta import relativedelta
+
+from .models import Loan, Customer
+
 
 def calculate_credit_score(customer: Customer):
     # i. Past Loans paid on time
@@ -38,13 +43,24 @@ def calculate_credit_score(customer: Customer):
     credit_score = int(credit_score_a + credit_score_b + credit_score_c + credit_score_d)
     return min(100, credit_score)
 
+
 def calculate_emi(principal, annual_rate, tenure_months):
+    # Ensure all inputs are Decimals for precision
+    principal = Decimal(principal)
+    annual_rate = Decimal(annual_rate)
+    
     if annual_rate == 0:
-        return principal / tenure_months
-    monthly_rate = (annual_rate / 12) / 100
-    p = float(principal)
-    n = tenure_months
-    emi = (p * monthly_rate * (1 + monthly_rate)**n) / ((1 + monthly_rate)**n - 1)
+        return round(principal / Decimal(tenure_months), 2)
+        
+    # Perform all calculations with Decimal
+    monthly_rate = annual_rate / Decimal('12') / Decimal('100')
+    n = Decimal(tenure_months)
+    
+    # EMI formula: P * r * (1+r)^n / ((1+r)^n - 1)
+    one_plus_r = 1 + monthly_rate
+    emi = (principal * monthly_rate * (one_plus_r**n)) / (one_plus_r**n - 1)
+    
+    # Round to 2 decimal places
     return round(emi, 2)
 
 
@@ -53,17 +69,23 @@ def check_loan_eligibility(customer: Customer, requested_interest_rate, loan_amo
     
     current_emis = Loan.objects.filter(customer=customer, end_date__gte=date.today()).aggregate(Sum('monthly_payment'))['monthly_payment__sum'] or 0
     
-    # Calculate EMI for the new loan to check the EMI burden
-    new_emi = calculate_emi(loan_amount, requested_interest_rate, tenure)
+    # We still need to calculate the potential new EMI for the check
+    potential_new_emi = calculate_emi(loan_amount, requested_interest_rate, tenure)
     
-    if (current_emis + new_emi) > (customer.monthly_salary * 0.5):
+    # CHECK 1: Total EMI must be <= 50% of monthly salary
+    if (current_emis + potential_new_emi) > (customer.monthly_salary * 0.5):
+        # Return a full-shaped dictionary, even on failure
         return {
+            "customer_id": customer.customer_id,
             "approval": False,
             "interest_rate": requested_interest_rate,
             "corrected_interest_rate": None,
-            "message": "Total EMI exceeds 50% of monthly salary."
+            "tenure": tenure,
+            "monthly_installment": potential_new_emi, # Show what the installment would have been
+            "message": "Total EMI exceeds 50% of monthly salary." 
         }
 
+    # CHECK 2: Based on credit score
     approval = False
     corrected_interest_rate = requested_interest_rate
 
@@ -73,27 +95,32 @@ def check_loan_eligibility(customer: Customer, requested_interest_rate, loan_amo
         if requested_interest_rate > 12:
             approval = True
         else:
-            corrected_interest_rate = 12.00
-            approval = True # Approve but with corrected rate
+            corrected_interest_rate = Decimal('12.00')
+            approval = True
     elif 30 >= credit_score > 10:
         if requested_interest_rate > 16:
             approval = True
         else:
-            corrected_interest_rate = 16.00
-            approval = True # Approve but with corrected rate
+            corrected_interest_rate = Decimal('16.00')
+            approval = True
     else: # score <= 10
         approval = False
         
     final_interest_rate = corrected_interest_rate if corrected_interest_rate != requested_interest_rate else requested_interest_rate
     
+    # If not approved by credit score, return a full-shaped dictionary
     if not approval:
         return {
+            "customer_id": customer.customer_id,
             "approval": False,
             "interest_rate": requested_interest_rate,
             "corrected_interest_rate": None,
+            "tenure": tenure,
+            "monthly_installment": potential_new_emi,
             "message": "Loan not approved based on credit score."
         }
 
+    # If all checks pass, calculate final monthly installment and return
     monthly_installment = calculate_emi(loan_amount, final_interest_rate, tenure)
 
     return {
@@ -103,4 +130,5 @@ def check_loan_eligibility(customer: Customer, requested_interest_rate, loan_amo
         "corrected_interest_rate": corrected_interest_rate if corrected_interest_rate != requested_interest_rate else None,
         "tenure": tenure,
         "monthly_installment": monthly_installment,
+        "message": "Loan approved." # Add a success message for consistency
     }

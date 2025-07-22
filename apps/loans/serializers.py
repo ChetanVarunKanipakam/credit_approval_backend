@@ -1,3 +1,5 @@
+# apps/loans/serializers.py
+
 from rest_framework import serializers
 from .models import Loan
 from apps.customers.models import Customer
@@ -14,7 +16,8 @@ class EligibilityResponseSerializer(serializers.Serializer):
     interest_rate = serializers.DecimalField(max_digits=5, decimal_places=2)
     corrected_interest_rate = serializers.DecimalField(max_digits=5, decimal_places=2, allow_null=True)
     tenure = serializers.IntegerField()
-    monthly_installment = serializers.DecimalField(max_digits=10, decimal_places=2)
+    monthly_installment = serializers.DecimalField(max_digits=10, decimal_places=2, source='monthly_payment', allow_null=True) # Corrected source
+    message = serializers.CharField()
 
 class CreateLoanRequestSerializer(serializers.Serializer):
     customer_id = serializers.IntegerField()
@@ -27,7 +30,7 @@ class CreateLoanResponseSerializer(serializers.Serializer):
     customer_id = serializers.IntegerField()
     loan_approved = serializers.BooleanField()
     message = serializers.CharField()
-    monthly_installment = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    monthly_installment = serializers.DecimalField(max_digits=10, decimal_places=2, source='monthly_payment', allow_null=True) # Corrected source
 
 class CustomerDetailsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -36,12 +39,15 @@ class CustomerDetailsSerializer(serializers.ModelSerializer):
 
 class ViewLoanSerializer(serializers.ModelSerializer):
     customer = CustomerDetailsSerializer()
+    monthly_installment = serializers.DecimalField(max_digits=10, decimal_places=2, source='monthly_payment') # Corrected source
+
     class Meta:
         model = Loan
         fields = ['loan_id', 'customer', 'loan_amount', 'interest_rate', 'monthly_installment', 'tenure']
 
 class ViewCustomerLoanSerializer(serializers.ModelSerializer):
     repayments_left = serializers.SerializerMethodField()
+    monthly_installment = serializers.DecimalField(max_digits=10, decimal_places=2, source='monthly_payment') # Corrected source
 
     class Meta:
         model = Loan

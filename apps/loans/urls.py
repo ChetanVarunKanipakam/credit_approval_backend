@@ -1,3 +1,5 @@
+# apps/loans/urls.py
+
 from django.urls import path
 from .views import CheckEligibilityView, CreateLoanView, ViewLoanView, ViewCustomerLoansView
 
