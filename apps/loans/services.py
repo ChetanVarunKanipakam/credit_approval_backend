@@ -1,8 +1,7 @@
-# apps/loans/services.py
 
 from datetime import date
 from django.db.models import Sum
-from decimal import Decimal  # <--- THIS IS THE MISSING LINE
+from decimal import Decimal 
 from dateutil.relativedelta import relativedelta
 
 from .models import Loan, Customer
@@ -130,5 +129,5 @@ def check_loan_eligibility(customer: Customer, requested_interest_rate, loan_amo
         "corrected_interest_rate": corrected_interest_rate if corrected_interest_rate != requested_interest_rate else None,
         "tenure": tenure,
         "monthly_installment": monthly_installment,
-        "message": "Loan approved." # Add a success message for consistency
+        "message": "Loan approved." 
     }

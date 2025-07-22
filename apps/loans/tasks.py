@@ -18,29 +18,26 @@ def ingest_loan_data_task():
             if customer_exists:
                 loans_to_create.append(
                     Loan(
-                        # Assuming similar column names in loan_data.xlsx
                         customer_id=row['Customer ID'],
                         loan_id=row['Loan ID'],
                         loan_amount=row['Loan Amount'],
                         tenure=row['Tenure'],
                         interest_rate=row['Interest Rate'],
-                        monthly_payment=row['Monthly payment'], # Adjust if name is different
-                        emis_paid_on_time=row['EMIs paid on Time'], # Adjust if name is different
-                        start_date=row['Date of Approval'], # Adjust if name is different
-                        end_date=row['End Date'], # Adjust if name is different
+                        monthly_payment=row['Monthly payment'], 
+                        emis_paid_on_time=row['EMIs paid on Time'], 
+                        start_date=row['Date of Approval'], 
+                        end_date=row['End Date'], 
                     )
                 )
                 
-                # Also, update the customer's current_debt
+        
                 cust_id = row['Customer ID']
                 if cust_id not in customers_to_update:
                     customers_to_update[cust_id] = 0
                 customers_to_update[cust_id] += row['Loan Amount']
 
-        # Bulk create loans
         Loan.objects.bulk_create(loans_to_create, ignore_conflicts=True)
         
-        # Bulk update customer debt
         for cust_id, total_loan in customers_to_update.items():
             Customer.objects.filter(pk=cust_id).update(current_debt=total_loan)
 

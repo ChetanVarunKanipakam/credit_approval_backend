@@ -1,5 +1,3 @@
-# apps/loans/serializers.py
-
 from rest_framework import serializers
 from .models import Loan
 from apps.customers.models import Customer

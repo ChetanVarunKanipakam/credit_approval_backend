@@ -1,4 +1,3 @@
-# apps/customers/apps.py
 from django.apps import AppConfig
 
 class CustomersConfig(AppConfig):

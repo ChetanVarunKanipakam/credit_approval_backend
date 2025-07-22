@@ -1,4 +1,3 @@
-# apps/loans/apps.py
 from django.apps import AppConfig
 
 class LoansConfig(AppConfig):
